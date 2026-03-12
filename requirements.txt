@@ -1,0 +1,9 @@
+# AI Autonomous World - Python Dependencies
+aiohttp>=3.8.0
+asyncio
+dataclasses
+uuid
+datetime
+typing
+enum34
+subprocess32

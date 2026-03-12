@@ -1,0 +1,129 @@
+# AI Autonomous World - Docker Configuration
+# AI自主世界 - Docker配置
+
+version: '3.8'
+
+services:
+  # 消息总线 + 协调器（主节点）
+  ai-world-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-world-core
+    hostname: ai-world-core
+    ports:
+      - "8080:8080"  # 消息总线API
+      - "3000:3000"  # 监控面板（如果有）
+    volumes:
+      - ./shared:/opt/ai-world/shared
+      - ./logs:/opt/ai-world/logs
+      - ./config:/opt/ai-world/config
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - COZE_API_KEY=${COZE_API_KEY}
+      - NODE_ROLE=coordinator
+    networks:
+      - ai-world-network
+    restart: unless-stopped
+    command: python main.py --host 0.0.0.0 --port 8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 工作节点1 - 代码与分析
+  worker-001:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-world-worker-001
+    hostname: worker-001
+    volumes:
+      - ./shared:/opt/ai-world/shared
+      - ./logs:/opt/ai-world/logs
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - COORDINATOR_URL=http://ai-world-core:8080
+      - NODE_ID=worker-001
+      - CAPABILITIES=coding,analysis
+      - NODE_ROLE=worker
+    networks:
+      - ai-world-network
+    restart: unless-stopped
+    command: python run_worker.py --id worker-001 --capabilities coding analysis
+    depends_on:
+      - ai-world-core
+
+  # 工作节点2 - 研究与创作
+  worker-002:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-world-worker-002
+    hostname: worker-002
+    volumes:
+      - ./shared:/opt/ai-world/shared
+      - ./logs:/opt/ai-world/logs
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - COZE_API_KEY=${COZE_API_KEY}
+      - COORDINATOR_URL=http://ai-world-core:8080
+      - NODE_ID=worker-002
+      - CAPABILITIES=research,creation
+      - NODE_ROLE=worker
+    networks:
+      - ai-world-network
+    restart: unless-stopped
+    command: python run_worker.py --id worker-002 --capabilities research creation
+    depends_on:
+      - ai-world-core
+
+  # 工作节点3 - 全能型
+  worker-003:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-world-worker-003
+    hostname: worker-003
+    volumes:
+      - ./shared:/opt/ai-world/shared
+      - ./logs:/opt/ai-world/logs
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - COORDINATOR_URL=http://ai-world-core:8080
+      - NODE_ID=worker-003
+      - CAPABILITIES=coding,research,analysis
+      - NODE_ROLE=worker
+    networks:
+      - ai-world-network
+    restart: unless-stopped
+    command: python run_worker.py --id worker-003 --capabilities coding research analysis
+    depends_on:
+      - ai-world-core
+
+  # （可选）监控面板
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ai-world-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./config/grafana:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=aiworld123
+    networks:
+      - ai-world-network
+    restart: unless-stopped
+    profiles:
+      - monitoring  # 使用 docker-compose --profile monitoring up 启动
+
+networks:
+  ai-world-network:
+    driver: bridge
+
+volumes:
+  grafana-storage:
