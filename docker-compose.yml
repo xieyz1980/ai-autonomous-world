@@ -104,6 +104,25 @@ services:
     depends_on:
       - ai-world-core
 
+  # Mission Control - 王国控制中心
+  mission-control:
+    build:
+      context: ./mission_control
+      dockerfile: Dockerfile
+    container_name: ai-world-mission-control
+    hostname: mission-control
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./mission_control:/app
+      - /opt/ai-world/logs:/opt/ai-world/logs
+      - /opt/ai-world/data:/opt/ai-world/data
+    networks:
+      - ai-world-network
+    restart: unless-stopped
+    depends_on:
+      - ai-world-core
+
   # （可选）监控面板
   grafana:
     image: grafana/grafana:latest
